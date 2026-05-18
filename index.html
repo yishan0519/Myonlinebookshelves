@@ -488,6 +488,16 @@ function makeBookForm(initial,onSave,onClose,title){
   saveBtn.disabled=!form.title.trim();
   modal.appendChild(saveBtn);
 
+  // Enter 鍵儲存（在輸入框按 Enter 直接儲存，除了 textarea）
+  overlay.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"&&!e.target.closest("[data-noeenter]")){
+      e.preventDefault();
+      if(!form.title.trim())return;
+      onSave({...form,tags:[...form.tags],lists:[...(form.lists||[])],id:form.id||Date.now()});
+      onClose();
+    }
+  });
+
   return overlay;
 }
 
@@ -552,6 +562,16 @@ function makeWishForm(initial,onSave,onClose,title){
   nw.appendChild(ne);modal.appendChild(nw);
   const sb=btn({style:{width:"100%",padding:"13px",border:"none",borderRadius:"12px",background:"#1a1a2e",color:"#fff",fontSize:"15px",fontWeight:"700"},onClick:()=>{if(!form.title.trim())return;onSave({...form,id:form.id||Date.now()});onClose();}},[initial&&initial.id?"儲存修改":"加入待購清單"]);
   modal.appendChild(sb);
+
+  // Enter 鍵儲存
+  overlay.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"){
+      e.preventDefault();
+      if(!form.title.trim())return;
+      onSave({...form,id:form.id||Date.now()});onClose();
+    }
+  });
+
   return overlay;
 }
 
