@@ -854,12 +854,9 @@ function render(){
         menuOpen=!menuOpen;
         menu.style.display=menuOpen?"block":"none";
       });
-      // close when clicking outside
-      document.addEventListener("click",function onClose(e){
-        if(!tagWrap.contains(e.target)){
-          menuOpen=false;menu.style.display="none";
-          document.removeEventListener("click",onClose);
-        }
+      menu.addEventListener("click",(e)=>{e.stopPropagation();});
+      document.addEventListener("click",()=>{
+        if(menuOpen){menuOpen=false;menu.style.display="none";}
       });
       tagWrap.appendChild(tagBtn);tagWrap.appendChild(menu);
       filInner.appendChild(tagWrap);
