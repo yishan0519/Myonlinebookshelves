@@ -648,7 +648,7 @@ function makeWishDetail(item,onClose,onEdit,onDelete,onMove){
   if(item.link){const a=h("a",{href:item.link,style:{display:"flex",alignItems:"center",justifyContent:"center",gap:"6px",background:color,color:"#fff",borderRadius:"12px",padding:"10px",fontSize:"13px",fontWeight:"700",textDecoration:"none",marginBottom:"14px"}},["🔗 前往購買"]);body.appendChild(a);}
   body.appendChild(btn({style:{width:"100%",padding:"11px",border:"none",borderRadius:"12px",background:"#4A7C59",color:"#fff",fontSize:"14px",fontWeight:"700",marginBottom:"10px"},onClick:()=>{onMove(item);onClose();}},["📚 已購買，加入書庫"]));
   const actions=div({style:{display:"flex",gap:"10px"}});
-  actions.appendChild(btn({style:{flex:"1",padding:"11px",border:"2px solid #e8e8e8",borderRadius:"12px",background:"#fff",fontSize:"14px",fontWeight:"600",color:"#333"},onClick:()=>{onEdit(item);onClose();}},["✏️ 編輯"]));
+  actions.appendChild(btn({style:{flex:"1",padding:"11px",border:"2px solid #e8e8e8",borderRadius:"12px",background:"#fff",fontSize:"14px",fontWeight:"600",color:"#333"},onClick:()=>{onEdit(item);}},["✏️ 編輯"]));
   let dc=false;
   const db2=btn({style:{flex:"1",padding:"11px",border:"2px solid #fee2e2",borderRadius:"12px",background:"#fff",fontSize:"14px",fontWeight:"600",color:"#ef4444"},onClick:()=>{if(!dc){dc=true;db2.textContent="確定刪除？";db2.style.background="#ef4444";db2.style.color="#fff";db2.style.border="none";}else{onDelete(item.id);onClose();}}},["🗑️ 刪除"]);
   actions.appendChild(db2);body.appendChild(actions);modal.appendChild(body);
