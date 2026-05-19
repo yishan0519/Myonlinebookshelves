@@ -487,6 +487,15 @@ function makeBookForm(initial,onSave,onClose,title){
   },[initial&&initial.id?"儲存修改":"加入書庫"]);
   saveBtn.disabled=!form.title.trim();
   modal.appendChild(saveBtn);
+  // Enter 快速儲存
+  modal.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"&&e.target.tagName!=="BUTTON"){
+      e.preventDefault();
+      if(!form.title.trim())return;
+      onSave({...form,tags:[...form.tags],lists:[...(form.lists||[])],id:form.id||Date.now()});
+      onClose();
+    }
+  });
 
   return overlay;
 }
@@ -552,6 +561,15 @@ function makeWishForm(initial,onSave,onClose,title){
   nw.appendChild(ne);modal.appendChild(nw);
   const sb=btn({style:{width:"100%",padding:"13px",border:"none",borderRadius:"12px",background:"#1a1a2e",color:"#fff",fontSize:"15px",fontWeight:"700"},onClick:()=>{if(!form.title.trim())return;onSave({...form,id:form.id||Date.now()});onClose();}},[initial&&initial.id?"儲存修改":"加入待購清單"]);
   modal.appendChild(sb);
+  // Enter 快速儲存
+  modal.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"&&e.target.tagName!=="BUTTON"){
+      e.preventDefault();
+      if(!form.title.trim())return;
+      onSave({...form,id:form.id||Date.now()});
+      onClose();
+    }
+  });
   return overlay;
 }
 
@@ -710,71 +728,92 @@ function render(){
     searchEl.placeholder="🔍 搜尋書名或作者...";searchEl.value=search;
     let searchComposing=false;
     searchEl.addEventListener("compositionstart",()=>{searchComposing=true;});
-    searchEl.addEventListener("compositionend",()=>{setTimeout(()=>{searchComposing=false;},0);state.search=searchEl.value;render();});
-    searchEl.addEventListener("input",()=>{if(searchComposing)return;state.search=searchEl.value;render();});
+    searchEl.addEventListener("compositionend",(e)=>{searchComposing=false;state.search=searchEl.value;renderBooks();});
+    searchEl.addEventListener("input",()=>{if(searchComposing)return;state.search=searchEl.value;renderBooks();});
     searchRow.appendChild(searchEl);
-
-    // Tag multi-select dropdown button
-    const usedTagsForDrop=state.customTags.filter(t=>books.some(b=>b.tags&&b.tags.includes(t)));
-    const filtTags=state.filtTags||[];
-    let tagDropOpen=false;
-    const tagDropWrap=div({style:{position:"relative",flexShrink:"0"}});
-    const tagBtnLabel=filtTags.length===0?"🏷️ 標籤":`🏷️ ${filtTags.length}`;
-    const tagDropBtn=btn({style:{padding:"9px 13px",borderRadius:"10px",border:"2px solid",borderColor:filtTags.length>0?"#8B5CF6":"#e8e8e8",background:filtTags.length>0?"#ede9fe":"#fafafa",color:filtTags.length>0?"#8B5CF6":"#666",fontSize:"13px",fontWeight:filtTags.length>0?"700":"400",whiteSpace:"nowrap",position:"relative"}},[ tagBtnLabel]);
-    const tagDropMenu=div({style:{display:"none",position:"absolute",top:"calc(100% + 6px)",right:"0",background:"#fff",border:"2px solid #e8e8e8",borderRadius:"12px",boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:"200",minWidth:"160px",padding:"8px",maxHeight:"260px",overflowY:"auto"}});
-
-    function renderTagDropItems(){
-      tagDropMenu.innerHTML="";
-      if(usedTagsForDrop.length===0){
-        tagDropMenu.appendChild(div({style:{fontSize:"12px",color:"#aaa",padding:"8px 10px",textAlign:"center"}},["書庫中還沒有標籤"]));
-        return;
-      }
-      // 清除全部
-      if(filtTags.length>0){
-        const clearAll=btn({style:{width:"100%",textAlign:"left",padding:"6px 10px",border:"none",borderRadius:"8px",background:"#fee2e2",color:"#ef4444",fontSize:"12px",fontWeight:"700",marginBottom:"4px",cursor:"pointer"},onClick:()=>{state.filtTags=[];renderTagDropItems();renderTagDropBtn();render();}},["✕ 清除全部標籤"]);
-        tagDropMenu.appendChild(clearAll);
-      }
-      usedTagsForDrop.forEach(t=>{
-        const sel=filtTags.includes(t);
-        const row=btn({style:{width:"100%",textAlign:"left",padding:"7px 10px",border:"none",borderRadius:"8px",background:sel?"#ede9fe":"transparent",color:sel?"#8B5CF6":"#333",fontSize:"13px",fontWeight:sel?"700":"400",cursor:"pointer",display:"flex",alignItems:"center",gap:"8px"},
-          onClick:()=>{
-            const idx=state.filtTags.indexOf(t);
-            if(idx>=0)state.filtTags.splice(idx,1);else state.filtTags.push(t);
-            renderTagDropItems();renderTagDropBtn();render();
-          }},[ sel?"☑":"☐","  "+t]);
-        tagDropMenu.appendChild(row);
-      });
-    }
-    function renderTagDropBtn(){
-      const ft=state.filtTags||[];
-      tagDropBtn.textContent=ft.length===0?"🏷️ 標籤":`🏷️ ${ft.length}`;
-      tagDropBtn.style.borderColor=ft.length>0?"#8B5CF6":"#e8e8e8";
-      tagDropBtn.style.background=ft.length>0?"#ede9fe":"#fafafa";
-      tagDropBtn.style.color=ft.length>0?"#8B5CF6":"#666";
-      tagDropBtn.style.fontWeight=ft.length>0?"700":"400";
-    }
-    renderTagDropItems();
-    tagDropBtn.addEventListener("click",(e)=>{
-      e.stopPropagation();
-      tagDropOpen=!tagDropOpen;
-      tagDropMenu.style.display=tagDropOpen?"block":"none";
-    });
-    document.addEventListener("click",function closeTagDrop(e){
-      if(!tagDropWrap.contains(e.target)){tagDropOpen=false;tagDropMenu.style.display="none";document.removeEventListener("click",closeTagDrop);}
-    });
-    tagDropWrap.appendChild(tagDropBtn);tagDropWrap.appendChild(tagDropMenu);
-    if(usedTagsForDrop.length>0)searchRow.appendChild(tagDropWrap);
     filInner.appendChild(searchRow);
 
-    // Show active tag chips below search if any selected
-    if(filtTags.length>0){
-      const chipRow=div({style:{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"8px"}});
-      filtTags.forEach(t=>{
-        const chip=btn({style:{padding:"3px 10px",borderRadius:"20px",border:"none",background:"#8B5CF6",color:"#fff",fontSize:"11px",fontWeight:"700",display:"flex",alignItems:"center",gap:"4px"},
-          onClick:()=>{state.filtTags=state.filtTags.filter(x=>x!==t);render();}},[ t+" ✕"]);
-        chipRow.appendChild(chip);
+    // Tag dropdown: only show if any book has a tag
+    const usedTagsForDrop=state.customTags.filter(t=>books.some(b=>b.tags&&b.tags.includes(t)));
+    const filtTags=state.filtTags||[];
+    if(usedTagsForDrop.length>0){
+      const tagWrap=div({style:{position:"relative",marginBottom:"10px",display:"inline-block"}});
+      const hasSelection=filtTags.length>0;
+      const tagBtn=btn({style:{
+        display:"flex",alignItems:"center",gap:"6px",
+        padding:"7px 13px",borderRadius:"10px",border:"2px solid",
+        borderColor:hasSelection?"#8B5CF6":"#e8e8e8",
+        background:hasSelection?"#ede9fe":"#fafafa",
+        color:hasSelection?"#8B5CF6":"#555",
+        fontSize:"13px",fontWeight:hasSelection?"700":"400",cursor:"pointer"
+      }},["🏷️ 標籤"+(hasSelection?` (${filtTags.length})`:"")+" ▾"]);
+
+      const menu=div({style:{
+        display:"none",position:"absolute",top:"calc(100% + 6px)",left:"0",
+        background:"#fff",border:"2px solid #e8e8e8",borderRadius:"12px",
+        boxShadow:"0 8px 28px rgba(0,0,0,0.13)",zIndex:"300",
+        minWidth:"180px",padding:"8px",maxHeight:"280px",overflowY:"auto"
+      }});
+
+      function buildMenu(){
+        menu.innerHTML="";
+        // 清除全部
+        if(state.filtTags.length>0){
+          const clr=btn({style:{width:"100%",textAlign:"left",padding:"6px 10px",border:"none",borderRadius:"8px",background:"#fee2e2",color:"#ef4444",fontSize:"12px",fontWeight:"700",marginBottom:"4px",cursor:"pointer",display:"block"}},["✕ 清除全部"]);
+          clr.addEventListener("click",()=>{state.filtTags=[];buildMenu();updateTagBtn();renderBooks();});
+          menu.appendChild(clr);
+        }
+        usedTagsForDrop.forEach(t=>{
+          const sel=state.filtTags.includes(t);
+          const row=div({style:{
+            display:"flex",alignItems:"center",gap:"10px",
+            padding:"8px 10px",borderRadius:"8px",cursor:"pointer",
+            background:sel?"#ede9fe":"transparent",
+            color:sel?"#8B5CF6":"#333",
+            fontSize:"13px",fontWeight:sel?"700":"400",
+            userSelect:"none"
+          }});
+          const box=div({style:{
+            width:"17px",height:"17px",flexShrink:"0",borderRadius:"4px",border:"2px solid",
+            borderColor:sel?"#8B5CF6":"#ccc",background:sel?"#8B5CF6":"#fff",
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",color:"#fff",fontWeight:"700"
+          }},[sel?"✓":""]);
+          row.appendChild(box);
+          row.appendChild(document.createTextNode(t));
+          row.addEventListener("click",()=>{
+            const idx=state.filtTags.indexOf(t);
+            if(idx>=0)state.filtTags.splice(idx,1);else state.filtTags.push(t);
+            buildMenu();updateTagBtn();renderBooks();
+          });
+          menu.appendChild(row);
+        });
+      }
+
+      function updateTagBtn(){
+        const ft=state.filtTags;const has=ft.length>0;
+        tagBtn.textContent="🏷️ 標籤"+(has?` (${ft.length})`:"")+" ▾";
+        tagBtn.style.borderColor=has?"#8B5CF6":"#e8e8e8";
+        tagBtn.style.background=has?"#ede9fe":"#fafafa";
+        tagBtn.style.color=has?"#8B5CF6":"#555";
+        tagBtn.style.fontWeight=has?"700":"400";
+      }
+
+      buildMenu();
+      let menuOpen=false;
+      tagBtn.addEventListener("click",(e)=>{
+        e.stopPropagation();
+        menuOpen=!menuOpen;
+        menu.style.display=menuOpen?"block":"none";
       });
-      filInner.appendChild(chipRow);
+      // close when clicking outside
+      document.addEventListener("click",function onClose(e){
+        if(!tagWrap.contains(e.target)){
+          menuOpen=false;menu.style.display="none";
+          document.removeEventListener("click",onClose);
+        }
+      });
+      tagWrap.appendChild(tagBtn);tagWrap.appendChild(menu);
+      filInner.appendChild(tagWrap);
     }
 
     const platRow=div({style:{display:"flex",gap:"5px",marginBottom:"7px",overflowX:"auto"}});
@@ -802,93 +841,98 @@ function render(){
 
     filBar.appendChild(filInner);app.appendChild(filBar);
 
-    // Books
-    const filtered=books.filter(b=>{
-      const q=search.toLowerCase();
-      const ft=state.filtTags||[];
-      return(!search||(b.title&&b.title.toLowerCase().includes(q))||(b.author&&b.author.toLowerCase().includes(q)))
-        &&(filtP==="全部"||b.platform===filtP)&&(filtS==="全部"||b.status===filtS)
-        &&(ft.length===0||ft.every(t=>b.tags&&b.tags.includes(t)));
-    }).sort((a,b)=>{
-      // 1. 先照作者排
-      const authorCmp=(a.author||"").localeCompare(b.author||"","zh-TW");
-      if(authorCmp!==0)return authorCmp;
-      // 2. 同作者：同系列照集數排在一起（有 seriesNo 的優先，無集數排後面）
-      const aHas=a.seriesNo!=null&&a.seriesNo!=="";
-      const bHas=b.seriesNo!=null&&b.seriesNo!=="";
-      if(aHas&&bHas)return(Number(a.seriesNo)||0)-(Number(b.seriesNo)||0);
-      if(aHas&&!bHas)return -1;
-      if(!aHas&&bHas)return 1;
-      // 3. 都沒有集數：照書名排
-      return(a.title||"").localeCompare(b.title||"","zh-TW");
-    });
-
-    const content=div({style:{maxWidth:"960px",margin:"0 auto",padding:"20px 16px"}});
-    if(filtered.length===0){
-      const empty=div({style:{textAlign:"center",padding:"80px 20px",color:"#aaa"}});
-      empty.innerHTML=`<div style='font-size:52px;margin-bottom:14px'>📚</div><div style='font-size:15px;font-family:Noto Serif TC,serif'>${books.length===0?"還沒有書，點右上角新增吧！":"找不到符合的書籍"}</div>`;
-      content.appendChild(empty);
-    }else if(viewMode==="shelf"){
-      // ── Bookshelf view ──
-      const shelfWrap=div({style:{background:"#f0ebe3",borderRadius:"16px",padding:"0 0 16px",overflow:"hidden",boxShadow:"0 8px 32px rgba(0,0,0,0.15)"}});
-      // 固定每行 3 本，space-between 均分
-      const ROW=3;const BKWIDTH=96;const BKHEIGHT=138;
-      for(let i=0;i<filtered.length;i+=ROW){
-        const rowBooks=filtered.slice(i,i+ROW);
-        const shelf=div({style:{padding:"24px 20px 0",position:"relative"}});
-        const booksRow=div({style:{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}});
-        const slots=[...rowBooks];while(slots.length<ROW)slots.push(null);
-        slots.forEach(book=>{
-          if(!book){booksRow.appendChild(div({style:{width:BKWIDTH+"px",flexShrink:"0"}}));return;}
-          const color=PC[book.platform]||"#888";
-          const bookEl=div({style:{width:BKWIDTH+"px",flexShrink:"0",cursor:"pointer",position:"relative",transition:"transform .18s"},onClick:()=>setState({modal:{type:"detail",data:book}})});
-          bookEl.addEventListener("mouseenter",()=>{bookEl.style.transform="translateY(-8px)";});
-          bookEl.addEventListener("mouseleave",()=>{bookEl.style.transform="translateY(0)";});
-          const bookInner=div({style:{position:"relative"}});
-          if(book.cover){
-            const img=h("img",{src:book.cover,style:{width:BKWIDTH+"px",height:BKHEIGHT+"px",objectFit:"cover",borderRadius:"3px 8px 8px 3px",display:"block",boxShadow:"4px 4px 12px rgba(0,0,0,0.25)"}});
-            bookInner.appendChild(img);
-          }else{
-            const spine=div({style:{width:BKWIDTH+"px",height:BKHEIGHT+"px",background:`linear-gradient(160deg,${color},${color}cc)`,borderRadius:"3px 8px 8px 3px",boxShadow:"4px 4px 12px rgba(0,0,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center",padding:"8px 6px",position:"relative",overflow:"hidden"}});
-            spine.appendChild(div({style:{position:"absolute",left:"0",top:"0",bottom:"0",width:"10px",background:"rgba(0,0,0,0.18)",borderRadius:"3px 0 0 3px"}}));
-            spine.appendChild(div({style:{fontSize:"12px",fontWeight:"700",color:"#fff",textAlign:"center",lineHeight:"1.4",wordBreak:"break-all",zIndex:"1",textShadow:"0 1px 3px rgba(0,0,0,0.4)"}},[book.title]));
-            bookInner.appendChild(spine);
-          }
-          const st=SC[book.status]||SC["想讀"];
-          bookInner.appendChild(div({style:{position:"absolute",top:"5px",right:"5px",width:"9px",height:"9px",borderRadius:"50%",background:st.c,boxShadow:"0 0 5px rgba(0,0,0,0.3)"}}));
-          bookEl.appendChild(bookInner);
-          bookEl.appendChild(div({style:{fontSize:"10px",color:"#5a4a3a",marginTop:"7px",textAlign:"center",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",width:BKWIDTH+"px",fontWeight:"500"}},[book.title]));
-          booksRow.appendChild(bookEl);
-        });
-        shelf.appendChild(booksRow);
-        const plank=div({style:{height:"14px",background:"linear-gradient(180deg,#c9a87c,#a07850)",borderRadius:"2px",marginTop:"10px",boxShadow:"0 4px 8px rgba(0,0,0,0.15)",position:"relative"}});
-        plank.appendChild(div({style:{position:"absolute",top:"0",left:"0",right:"0",height:"4px",background:"rgba(255,255,255,0.18)",borderRadius:"2px 2px 0 0"}}));
-        shelf.appendChild(plank);shelfWrap.appendChild(shelf);
-      }
-      content.appendChild(shelfWrap);
-    }else{
-      // ── List view ──
-      const grid=div({style:{display:"flex",flexDirection:"column",gap:"10px"}});
-      filtered.forEach(book=>{
-        const color=PC[book.platform]||"#888";const st=SC[book.status]||SC["想讀"];
-        const card=div({className:"card",style:{display:"flex",alignItems:"stretch",minHeight:"100px",overflow:"hidden",cursor:"pointer"},onClick:()=>setState({modal:{type:"detail",data:book}})});
-        const cvr=div({style:{width:"72px",flexShrink:"0",backgroundSize:"cover",backgroundPosition:"center",backgroundImage:book.cover?`url(${book.cover})`:"none",backgroundColor:book.cover?"transparent":"transparent",background:book.cover?`url(${book.cover}) center/cover`:`linear-gradient(135deg,${color}33,${color}66)`,display:"flex",alignItems:"center",justifyContent:"center"}});
-        if(!book.cover)cvr.innerHTML="<span style='font-size:28px'>📖</span>";
-        const info=div({style:{flex:"1",padding:"12px 14px",display:"flex",flexDirection:"column",justifyContent:"space-between",minWidth:"0"}});
-        const top=div();
-        top.appendChild(div({style:{fontFamily:"'Noto Serif TC',serif",fontSize:"14px",fontWeight:"700",color:"#1a1a2e",lineHeight:"1.4",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:"2",WebkitBoxOrient:"vertical"}},[book.title]));
-        if(book.author)top.appendChild(div({style:{fontSize:"12px",color:"#999",marginTop:"3px"}},[book.author]));
-        info.appendChild(top);
-        const bottom=div({style:{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap",alignItems:"center"}});
-        bottom.appendChild(div({style:{background:color,color:"#fff",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:"700"}},[book.platform]));
-        bottom.appendChild(div({style:{background:st.b,color:st.c,borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:"700"}},[st.e+" "+book.status]));
-        if(book.rating>0)bottom.appendChild(stars(book.rating,null,11));
-        info.appendChild(bottom);
-        card.appendChild(cvr);card.appendChild(info);grid.appendChild(card);
-      });
-      content.appendChild(grid);
-    }
+    // Books content area (stable container so search doesn't lose focus)
+    const content=div({id:"books-content",style:{maxWidth:"960px",margin:"0 auto",padding:"20px 16px"}});
     app.appendChild(content);
+
+    function renderBooks(){
+      const {books,filtP,filtS,viewMode}=state;const search=state.search;
+      content.innerHTML="";
+      const filtered=books.filter(b=>{
+        const q=search.toLowerCase();
+        const ft=state.filtTags||[];
+        return(!search||(b.title&&b.title.toLowerCase().includes(q))||(b.author&&b.author.toLowerCase().includes(q)))
+          &&(filtP==="全部"||b.platform===filtP)&&(filtS==="全部"||b.status===filtS)
+          &&(ft.length===0||ft.every(t=>b.tags&&b.tags.includes(t)));
+      }).sort((a,b)=>{
+        // 1. 先照作者排
+        const authorCmp=(a.author||"").localeCompare(b.author||"","zh-TW");
+        if(authorCmp!==0)return authorCmp;
+        // 2. 同作者：同系列照集數排在一起（有 seriesNo 的優先，無集數排後面）
+        const aHas=a.seriesNo!=null&&a.seriesNo!=="";
+        const bHas=b.seriesNo!=null&&b.seriesNo!=="";
+        if(aHas&&bHas)return(Number(a.seriesNo)||0)-(Number(b.seriesNo)||0);
+        if(aHas&&!bHas)return -1;
+        if(!aHas&&bHas)return 1;
+        // 3. 都沒有集數：照書名排
+        return(a.title||"").localeCompare(b.title||"","zh-TW");
+      });
+      if(filtered.length===0){
+        const empty=div({style:{textAlign:"center",padding:"80px 20px",color:"#aaa"}});
+        empty.innerHTML=`<div style='font-size:52px;margin-bottom:14px'>📚</div><div style='font-size:15px;font-family:Noto Serif TC,serif'>${books.length===0?"還沒有書，點右上角新增吧！":"找不到符合的書籍"}</div>`;
+        content.appendChild(empty);
+      }else if(viewMode==="shelf"){
+        // ── Bookshelf view ──
+        const shelfWrap=div({style:{background:"#f0ebe3",borderRadius:"16px",padding:"0 0 16px",overflow:"hidden",boxShadow:"0 8px 32px rgba(0,0,0,0.15)"}});
+        // 固定每行 3 本，space-between 均分
+        const ROW=3;const BKWIDTH=96;const BKHEIGHT=138;
+        for(let i=0;i<filtered.length;i+=ROW){
+          const rowBooks=filtered.slice(i,i+ROW);
+          const shelf=div({style:{padding:"24px 20px 0",position:"relative"}});
+          const booksRow=div({style:{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}});
+          const slots=[...rowBooks];while(slots.length<ROW)slots.push(null);
+          slots.forEach(book=>{
+            if(!book){booksRow.appendChild(div({style:{width:BKWIDTH+"px",flexShrink:"0"}}));return;}
+            const color=PC[book.platform]||"#888";
+            const bookEl=div({style:{width:BKWIDTH+"px",flexShrink:"0",cursor:"pointer",position:"relative",transition:"transform .18s"},onClick:()=>setState({modal:{type:"detail",data:book}})});
+            bookEl.addEventListener("mouseenter",()=>{bookEl.style.transform="translateY(-8px)";});
+            bookEl.addEventListener("mouseleave",()=>{bookEl.style.transform="translateY(0)";});
+            const bookInner=div({style:{position:"relative"}});
+            if(book.cover){
+              const img=h("img",{src:book.cover,style:{width:BKWIDTH+"px",height:BKHEIGHT+"px",objectFit:"cover",borderRadius:"3px 8px 8px 3px",display:"block",boxShadow:"4px 4px 12px rgba(0,0,0,0.25)"}});
+              bookInner.appendChild(img);
+            }else{
+              const spine=div({style:{width:BKWIDTH+"px",height:BKHEIGHT+"px",background:`linear-gradient(160deg,${color},${color}cc)`,borderRadius:"3px 8px 8px 3px",boxShadow:"4px 4px 12px rgba(0,0,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center",padding:"8px 6px",position:"relative",overflow:"hidden"}});
+              spine.appendChild(div({style:{position:"absolute",left:"0",top:"0",bottom:"0",width:"10px",background:"rgba(0,0,0,0.18)",borderRadius:"3px 0 0 3px"}}));
+              spine.appendChild(div({style:{fontSize:"12px",fontWeight:"700",color:"#fff",textAlign:"center",lineHeight:"1.4",wordBreak:"break-all",zIndex:"1",textShadow:"0 1px 3px rgba(0,0,0,0.4)"}},[book.title]));
+              bookInner.appendChild(spine);
+            }
+            const st=SC[book.status]||SC["想讀"];
+            bookInner.appendChild(div({style:{position:"absolute",top:"5px",right:"5px",width:"9px",height:"9px",borderRadius:"50%",background:st.c,boxShadow:"0 0 5px rgba(0,0,0,0.3)"}}));
+            bookEl.appendChild(bookInner);
+            bookEl.appendChild(div({style:{fontSize:"10px",color:"#5a4a3a",marginTop:"7px",textAlign:"center",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",width:BKWIDTH+"px",fontWeight:"500"}},[book.title]));
+            booksRow.appendChild(bookEl);
+          });
+          shelf.appendChild(booksRow);
+          const plank=div({style:{height:"14px",background:"linear-gradient(180deg,#c9a87c,#a07850)",borderRadius:"2px",marginTop:"10px",boxShadow:"0 4px 8px rgba(0,0,0,0.15)",position:"relative"}});
+          plank.appendChild(div({style:{position:"absolute",top:"0",left:"0",right:"0",height:"4px",background:"rgba(255,255,255,0.18)",borderRadius:"2px 2px 0 0"}}));
+          shelf.appendChild(plank);shelfWrap.appendChild(shelf);
+        }
+        content.appendChild(shelfWrap);
+      }else{
+        // ── List view ──
+        const grid=div({style:{display:"flex",flexDirection:"column",gap:"10px"}});
+        filtered.forEach(book=>{
+          const color=PC[book.platform]||"#888";const st=SC[book.status]||SC["想讀"];
+          const card=div({className:"card",style:{display:"flex",alignItems:"stretch",minHeight:"100px",overflow:"hidden",cursor:"pointer"},onClick:()=>setState({modal:{type:"detail",data:book}})});
+          const cvr=div({style:{width:"72px",flexShrink:"0",backgroundSize:"cover",backgroundPosition:"center",backgroundImage:book.cover?`url(${book.cover})`:"none",backgroundColor:book.cover?"transparent":"transparent",background:book.cover?`url(${book.cover}) center/cover`:`linear-gradient(135deg,${color}33,${color}66)`,display:"flex",alignItems:"center",justifyContent:"center"}});
+          if(!book.cover)cvr.innerHTML="<span style='font-size:28px'>📖</span>";
+          const info=div({style:{flex:"1",padding:"12px 14px",display:"flex",flexDirection:"column",justifyContent:"space-between",minWidth:"0"}});
+          const top=div();
+          top.appendChild(div({style:{fontFamily:"'Noto Serif TC',serif",fontSize:"14px",fontWeight:"700",color:"#1a1a2e",lineHeight:"1.4",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:"2",WebkitBoxOrient:"vertical"}},[book.title]));
+          if(book.author)top.appendChild(div({style:{fontSize:"12px",color:"#999",marginTop:"3px"}},[book.author]));
+          info.appendChild(top);
+          const bottom=div({style:{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap",alignItems:"center"}});
+          bottom.appendChild(div({style:{background:color,color:"#fff",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:"700"}},[book.platform]));
+          bottom.appendChild(div({style:{background:st.b,color:st.c,borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:"700"}},[st.e+" "+book.status]));
+          if(book.rating>0)bottom.appendChild(stars(book.rating,null,11));
+          info.appendChild(bottom);
+          card.appendChild(cvr);card.appendChild(info);grid.appendChild(card);
+        });
+        content.appendChild(grid);
+      }
+    }
+    renderBooks();
   }
 
   // ── Lists page ──
@@ -1284,6 +1328,7 @@ function render(){
       bRow2.appendChild(btn({style:{flex:"1",padding:"11px",border:"none",borderRadius:"10px",background:"#1a1a2e",color:"#fff",fontSize:"14px",fontWeight:"700"},onClick:()=>{const name=inp.value.trim();if(name){addList(name);setState({modal:null,activeList:name,page:"lists"});}else{inp.style.borderColor="#ef4444";}}},["新增"]));
       box.appendChild(bRow2);ov.appendChild(box);
       app.appendChild(ov);
+      inp.addEventListener("keydown",(e)=>{if(e.key==="Enter"){const name=inp.value.trim();if(name){addList(name);setState({modal:null,activeList:name,page:"lists"});}else{inp.style.borderColor="#ef4444";}}});
       setTimeout(()=>inp.focus(),50);
     }else if(modal.type==="addList_rename"){
       const ov=div({style:{position:"fixed",inset:"0",background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:"1000",padding:"16px"},onClick:(e)=>{if(e.target===ov)setState({modal:null});}});
@@ -1297,6 +1342,7 @@ function render(){
       bRow2.appendChild(btn({style:{flex:"1",padding:"11px",border:"none",borderRadius:"10px",background:"#1a1a2e",color:"#fff",fontSize:"14px",fontWeight:"700"},onClick:()=>{const n=inp.value.trim();if(n&&n!==modal.data){renameList(modal.data,n);}setState({modal:null});}},["儲存"]));
       box.appendChild(bRow2);ov.appendChild(box);
       app.appendChild(ov);
+      inp.addEventListener("keydown",(e)=>{if(e.key==="Enter"){const n=inp.value.trim();if(n&&n!==modal.data){renameList(modal.data,n);}setState({modal:null});}});
       setTimeout(()=>{inp.focus();inp.select();},50);
     }else if(modal.type==="addBook"){
       app.appendChild(makeBookForm({},saveBook,()=>setState({modal:null}),"新增書籍"));
