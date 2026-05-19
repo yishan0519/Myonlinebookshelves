@@ -1151,17 +1151,32 @@ function render(){
       const ybox=div({style:{background:"#fff",borderRadius:"16px",padding:"20px",marginBottom:"14px",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}});
       ybox.appendChild(div({style:{fontWeight:"700",fontSize:"14px",marginBottom:"4px",color:"#333"}},[`📅 ${selYear} 年加入的書`]));
       ybox.appendChild(div({style:{fontSize:"12px",color:"#aaa",marginBottom:"14px"}},["共 "+booksY.length+" 本"]));
-      booksY.forEach(book=>{
-        const color=PC[book.platform]||"#888";const st=SC[book.status]||SC["想讀"];
-        const row=div({style:{display:"flex",alignItems:"center",gap:"12px",marginBottom:"8px"}});
-        const cvr=div({style:{width:"40px",height:"56px",flexShrink:"0",borderRadius:"6px",background:book.cover?`url(${book.cover}) center/cover`:`linear-gradient(135deg,${color}33,${color}66)`,display:"flex",alignItems:"center",justifyContent:"center"}});
-        if(!book.cover)cvr.innerHTML="<span style='font-size:16px'>📖</span>";
-        const info=div({style:{flex:"1",minWidth:"0"}});
-        info.appendChild(div({style:{fontSize:"13px",fontWeight:"700",color:"#1a1a2e",fontFamily:"'Noto Serif TC',serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}},[book.title]));
-        if(book.author)info.appendChild(div({style:{fontSize:"11px",color:"#999",marginTop:"2px"}},[book.author]));
-        const stag=div({style:{background:st.b,color:st.c,borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:"700",flexShrink:"0"}},[st.e+" "+book.status]);
-        row.appendChild(cvr);row.appendChild(info);row.appendChild(stag);ybox.appendChild(row);
-      });
+      const YLIMIT=5;
+      let yExpanded=false;
+      const yList=div({});
+      function renderYList(){
+        yList.innerHTML="";
+        const shown=yExpanded?booksY:booksY.slice(0,YLIMIT);
+        shown.forEach(book=>{
+          const color=PC[book.platform]||"#888";const st=SC[book.status]||SC["想讀"];
+          const row=div({style:{display:"flex",alignItems:"center",gap:"12px",marginBottom:"8px"}});
+          const cvr=div({style:{width:"40px",height:"56px",flexShrink:"0",borderRadius:"6px",background:book.cover?`url(${book.cover}) center/cover`:`linear-gradient(135deg,${color}33,${color}66)`,display:"flex",alignItems:"center",justifyContent:"center"}});
+          if(!book.cover)cvr.innerHTML="<span style='font-size:16px'>📖</span>";
+          const info=div({style:{flex:"1",minWidth:"0"}});
+          info.appendChild(div({style:{fontSize:"13px",fontWeight:"700",color:"#1a1a2e",fontFamily:"'Noto Serif TC',serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}},[book.title]));
+          if(book.author)info.appendChild(div({style:{fontSize:"11px",color:"#999",marginTop:"2px"}},[book.author]));
+          const stag=div({style:{background:st.b,color:st.c,borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:"700",flexShrink:"0"}},[st.e+" "+book.status]);
+          row.appendChild(cvr);row.appendChild(info);row.appendChild(stag);yList.appendChild(row);
+        });
+        if(booksY.length>YLIMIT){
+          const tog=btn({style:{width:"100%",padding:"8px",background:"#f4f1ec",border:"none",borderRadius:"10px",fontSize:"12px",color:"#888",fontWeight:"600",marginTop:"4px"}},
+            [yExpanded?"▲ 收起":"▼ 顯示全部 "+booksY.length+" 本"]);
+          tog.addEventListener("click",()=>{yExpanded=!yExpanded;renderYList();});
+          yList.appendChild(tog);
+        }
+      }
+      renderYList();
+      ybox.appendChild(yList);
       sc.appendChild(ybox);
     }
     // Backup
@@ -1182,6 +1197,21 @@ function render(){
     });
     importLabel.appendChild(importInput);bRow.appendChild(importLabel);bkp.appendChild(bRow);sc.appendChild(bkp);
     app.appendChild(sc);
+  }
+
+  // ── Back to top button ──
+  const existing=document.getElementById("backToTop");
+  if(!existing){
+    const topBtn=document.createElement("button");
+    topBtn.id="backToTop";
+    topBtn.textContent="↑";
+    topBtn.style.cssText="position:fixed;bottom:24px;right:16px;width:44px;height:44px;border-radius:50%;background:#1a1a2e;color:#fff;border:none;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);display:none;z-index:999;transition:opacity .2s;";
+    topBtn.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
+    document.body.appendChild(topBtn);
+    window.addEventListener("scroll",()=>{
+      topBtn.style.display=window.scrollY>300?"flex":"none";
+      topBtn.style.alignItems="center";topBtn.style.justifyContent="center";
+    },{passive:true});
   }
 
   // ── Modals ──
