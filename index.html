@@ -269,16 +269,13 @@ function makeBookForm(initial,onSave,onClose,title){
     if(form.cover){preview.style.backgroundImage=`url(${form.cover})`;preview.innerHTML="";}
     else{preview.style.backgroundImage="";preview.innerHTML="<span style='font-size:28px;color:#ccc'>📖</span>";}
   }
-  const fileInput=h("input",{type:"file",accept:"image/*",style:{fontSize:"13px",width:"100%",cursor:"pointer",marginBottom:"8px"}});
-  fileInput.addEventListener("change",async(e)=>{
-    const file=e.target.files&&e.target.files[0];
-    if(!file)return;
-    // 先本地預覽
+
+  function handleImageFile(file){
+    if(!file||!file.type.startsWith("image/"))return;
     const r=new FileReader();
     r.onload=(ev)=>{compressImage(ev.target.result,(compressed)=>{
       form.cover=compressed;updatePreview();
       removeBtn.style.display="";
-      // 若已登入，同時上傳到 Cloudinary
       if(state.user){
         fileLabel.textContent="上傳中…";
         uploadToCloudinary(compressed).then(url=>{
@@ -293,14 +290,44 @@ function makeBookForm(initial,onSave,onClose,title){
       }
     });};
     r.readAsDataURL(file);
+  }
+
+  const fileInput=h("input",{type:"file",accept:"image/*",style:{display:"none"}});
+  fileInput.addEventListener("change",(e)=>{handleImageFile(e.target.files&&e.target.files[0]);});
+
+  const dropZone=div({style:{
+    border:"2px dashed #d0d0d0",borderRadius:"10px",padding:"14px 10px",
+    textAlign:"center",cursor:"pointer",background:"#fafafa",
+    fontSize:"12px",color:"#999",lineHeight:"1.6",transition:"all .15s",
+    marginBottom:"6px"
+  }});
+  dropZone.innerHTML="🖼️ 拖曳圖片到這裡<br><span style='color:#bbb'>或</span>";
+  dropZone.addEventListener("click",()=>fileInput.click());
+  dropZone.addEventListener("dragover",(e)=>{e.preventDefault();dropZone.style.borderColor="#8B5CF6";dropZone.style.background="#f5f3ff";});
+  dropZone.addEventListener("dragleave",()=>{dropZone.style.borderColor="#d0d0d0";dropZone.style.background="#fafafa";});
+  dropZone.addEventListener("drop",(e)=>{
+    e.preventDefault();
+    dropZone.style.borderColor="#d0d0d0";dropZone.style.background="#fafafa";
+    const file=e.dataTransfer.files&&e.dataTransfer.files[0];
+    handleImageFile(file);
   });
+
+  const browseBtn=btn({style:{
+    padding:"5px 14px",background:"#1a1a2e",color:"#fff",border:"none",
+    borderRadius:"8px",fontSize:"12px",fontWeight:"700",cursor:"pointer",marginTop:"4px"
+  }},["選擇檔案"]);
+  browseBtn.addEventListener("click",()=>fileInput.click());
+  dropZone.appendChild(document.createElement("br"));
+  dropZone.appendChild(browseBtn);
+
   const fileLabel=h("label",{style:{fontSize:"12px",color:"#666",display:"block",marginBottom:"6px"}},["從裝置選擇圖片："]);
   const removeBtn=btn({style:{marginTop:"4px",background:"none",border:"none",color:"#f87171",fontSize:"12px",padding:"0",display:"none"},onClick:()=>{form.cover="";updatePreview();removeBtn.style.display="none";}},["✕ 移除圖片"]);
   const origRemove=removeBtn.style.display;
   function showRemove(){removeBtn.style.display=form.cover?"":"none";}
 
   const rightCol=div({style:{flex:"1"}});
-  rightCol.appendChild(fileLabel);rightCol.appendChild(fileInput);
+  rightCol.appendChild(dropZone);
+  rightCol.appendChild(fileInput);
   const rmWrap=div({style:{marginTop:"4px"}});
   rmWrap.appendChild(removeBtn);rightCol.appendChild(rmWrap);
   coverRow.appendChild(preview);coverRow.appendChild(rightCol);
@@ -518,31 +545,53 @@ function makeWishForm(initial,onSave,onClose,title){
   const preview=div({style:{width:"80px",height:"110px",flexShrink:"0",borderRadius:"8px",backgroundColor:"#f0f0f0",display:"flex",alignItems:"center",justifyContent:"center",border:"2px dashed #ddd",overflow:"hidden",backgroundSize:"cover",backgroundPosition:"center"}});
   preview.innerHTML="<span style='font-size:28px;color:#ccc'>📖</span>";
   function updatePrev(){if(form.cover){preview.style.backgroundImage=`url(${form.cover})`;preview.innerHTML="";}else{preview.style.backgroundImage="";preview.innerHTML="<span style='font-size:28px;color:#ccc'>📖</span>";}}
-  const fi=h("input",{type:"file",accept:"image/*",style:{fontSize:"13px",width:"100%",cursor:"pointer",marginBottom:"8px"}});
-  const wishFileLabel=h("label",{style:{fontSize:"12px",color:"#666",display:"block",marginBottom:"6px"}},["從裝置選擇圖片："]);
-  fi.addEventListener("change",async(e)=>{
-    const file=e.target.files&&e.target.files[0];if(!file)return;
+
+  const wishFileLabel=h("label",{style:{fontSize:"12px",color:"#10B981",display:"block",marginBottom:"4px",minHeight:"16px"}},["　"]);
+
+  function handleWishImageFile(file){
+    if(!file||!file.type.startsWith("image/"))return;
     const r=new FileReader();
     r.onload=(ev)=>{compressImage(ev.target.result,(compressed)=>{
       form.cover=compressed;updatePrev();
       if(state.user){
-        wishFileLabel.textContent="上傳中…";
+        wishFileLabel.textContent="上傳中…";wishFileLabel.style.color="#F59E0B";
         uploadToCloudinary(compressed).then(url=>{
           form.cover=url;updatePrev();
-          wishFileLabel.textContent="✅ 已上傳";
-          setTimeout(()=>{wishFileLabel.textContent="從裝置選擇圖片：";},2000);
+          wishFileLabel.textContent="✅ 已上傳";wishFileLabel.style.color="#10B981";
+          setTimeout(()=>{wishFileLabel.textContent="　";},2000);
         }).catch(err=>{
           console.error(err);
-          wishFileLabel.textContent="⚠️ 上傳失敗，使用本地圖片";
-          setTimeout(()=>{wishFileLabel.textContent="從裝置選擇圖片：";},3000);
+          wishFileLabel.textContent="⚠️ 上傳失敗，使用本地圖片";wishFileLabel.style.color="#ef4444";
+          setTimeout(()=>{wishFileLabel.textContent="　";},3000);
         });
       }
     });};
     r.readAsDataURL(file);
+  }
+
+  const fi=h("input",{type:"file",accept:"image/*",style:{display:"none"}});
+  fi.addEventListener("change",(e)=>{handleWishImageFile(e.target.files&&e.target.files[0]);});
+
+  const wishDropZone=div({style:{
+    border:"2px dashed #d0d0d0",borderRadius:"10px",padding:"14px 10px",
+    textAlign:"center",cursor:"pointer",background:"#fafafa",
+    fontSize:"12px",color:"#999",lineHeight:"1.6",transition:"all .15s",marginBottom:"4px"
+  }});
+  wishDropZone.innerHTML="🖼️ 拖曳圖片到這裡<br><span style='color:#bbb'>或</span>";
+  wishDropZone.addEventListener("click",()=>fi.click());
+  wishDropZone.addEventListener("dragover",(e)=>{e.preventDefault();wishDropZone.style.borderColor="#8B5CF6";wishDropZone.style.background="#f5f3ff";});
+  wishDropZone.addEventListener("dragleave",()=>{wishDropZone.style.borderColor="#d0d0d0";wishDropZone.style.background="#fafafa";});
+  wishDropZone.addEventListener("drop",(e)=>{
+    e.preventDefault();wishDropZone.style.borderColor="#d0d0d0";wishDropZone.style.background="#fafafa";
+    handleWishImageFile(e.dataTransfer.files&&e.dataTransfer.files[0]);
   });
+  const wishBrowseBtn=btn({style:{padding:"5px 14px",background:"#1a1a2e",color:"#fff",border:"none",borderRadius:"8px",fontSize:"12px",fontWeight:"700",cursor:"pointer",marginTop:"4px"}},["選擇檔案"]);
+  wishBrowseBtn.addEventListener("click",()=>fi.click());
+  wishDropZone.appendChild(document.createElement("br"));
+  wishDropZone.appendChild(wishBrowseBtn);
+
   const rc=div({style:{flex:"1"}});
-  rc.appendChild(wishFileLabel);
-  rc.appendChild(fi);
+  rc.appendChild(wishDropZone);rc.appendChild(fi);rc.appendChild(wishFileLabel);
   coverRow.appendChild(preview);coverRow.appendChild(rc);modal.appendChild(coverRow);
   [{l:"書名 *",k:"title",p:"書名"},{l:"作者",k:"author",p:"作者姓名"},{l:"購買連結",k:"link",p:"https://..."}].forEach(({l,k,p})=>{
     const w=div({style:{marginBottom:"13px"}});w.appendChild(h("label",{style:LS},[l]));
