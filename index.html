@@ -897,7 +897,7 @@ function render(){
 
     // View toggle + sort toggle
     const {viewMode}=state;
-    if(!state.libSort)state.libSort="author";
+    if(!state.libSort)state.libSort="newest";
     const sortRow=div({style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:"8px"}});
     // Sort toggle
     const stog=div({style:{display:"flex",background:"#f0f0f0",borderRadius:"20px",padding:"2px",gap:"2px"}});
@@ -1051,10 +1051,19 @@ function render(){
         content.appendChild(emptyDiv);
       }else{
         const lg=div({style:{display:"flex",flexDirection:"column",gap:"10px"}});
+        function moveList(list,dir){
+          const nl=[...state.lists];
+          const i=nl.indexOf(list);
+          const j=i+dir;
+          if(j<0||j>=nl.length)return;
+          [nl[i],nl[j]]=[nl[j],nl[i]];
+          state.lists=nl;lsSave(LK,nl);fbSaveAll();
+          render();
+        }
         filteredLists.forEach(list=>{
           const cnt=books.filter(b=>b.lists&&b.lists.includes(list)).length;
           const covers=books.filter(b=>b.lists&&b.lists.includes(list)&&b.cover).slice(0,3).map(b=>b.cover);
-          const card=div({className:"card",style:{padding:"14px 16px",display:"flex",alignItems:"center",gap:"14px",cursor:"pointer"}});
+          const card=div({className:"card",style:{padding:"14px 16px",display:"flex",alignItems:"center",gap:"12px"}});
           const cRow=div({style:{display:"flex",gap:"3px",flexShrink:"0"},onClick:()=>setState({activeList:list})});
           if(covers.length>0)covers.forEach(c=>{const d=div({style:{width:"32px",height:"44px",borderRadius:"4px",backgroundImage:`url(${c})`,backgroundSize:"cover",backgroundPosition:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.15)"}});cRow.appendChild(d);});
           else cRow.innerHTML="<div style='width:44px;height:44px;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:22px'>📚</div>";
@@ -1063,7 +1072,11 @@ function render(){
           mid.appendChild(div({style:{fontFamily:"'Noto Serif TC',serif",fontSize:"15px",fontWeight:"700",color:"#1a1a2e"}},[list]));
           mid.appendChild(div({style:{fontSize:"12px",color:"#999",marginTop:"3px"}},[cnt+" 本書"]));
           card.appendChild(mid);
-          const acts=div({style:{display:"flex",gap:"4px",flexShrink:"0"}});
+          const acts=div({style:{display:"flex",gap:"4px",flexShrink:"0",alignItems:"center"}});
+          // ▲▼ 排序按鈕
+          const upBtn=btn({style:{background:"#f0f0f0",border:"none",borderRadius:"8px",padding:"5px 8px",fontSize:"13px",color:"#555"},onClick:()=>moveList(list,-1)},["▲"]);
+          const dnBtn=btn({style:{background:"#f0f0f0",border:"none",borderRadius:"8px",padding:"5px 8px",fontSize:"13px",color:"#555"},onClick:()=>moveList(list,1)},["▼"]);
+          acts.appendChild(upBtn);acts.appendChild(dnBtn);
           acts.appendChild(btn({style:{background:"#f4f4f4",border:"none",borderRadius:"8px",padding:"6px 10px",fontSize:"13px"},onClick:()=>setState({modal:{type:"addList_rename",data:list}})},["✏️"]));
           acts.appendChild(btn({style:{background:"#fff0f0",border:"none",borderRadius:"8px",padding:"6px 10px",fontSize:"13px"},onClick:()=>{if(confirm("確定刪除「"+list+"」書單？"))delList(list);}},["🗑️"]));
           card.appendChild(acts);lg.appendChild(card);
